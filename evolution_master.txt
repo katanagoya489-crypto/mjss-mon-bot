@@ -1,0 +1,170 @@
+===EVOLUTION===
+from: egg
+to: mj_base
+priority: 1
+time_required: 300
+condition_influence_min: 0
+condition_influence_max: 999
+condition_professionalism_min: 0
+condition_professionalism_max: 999
+condition_stress_min: 0
+condition_stress_max: 999
+condition_training_min: 0
+condition_training_max: 999
+condition_miss_min: 0
+condition_miss_max: 999
+condition_sleep_quality_min: 0
+condition_sleep_quality_max: 999
+notes: たまごからMJへ進化
+
+===EVOLUTION===
+from: mj_base
+to: ss_base
+priority: 1
+time_required: 600
+condition_influence_min: 0
+condition_influence_max: 999
+condition_professionalism_min: 0
+condition_professionalism_max: 999
+condition_stress_min: 0
+condition_stress_max: 999
+condition_training_min: 0
+condition_training_max: 999
+condition_miss_min: 0
+condition_miss_max: 999
+condition_sleep_quality_min: 0
+condition_sleep_quality_max: 999
+notes: MJからSSへ進化
+
+===EVOLUTION===
+from: ss_base
+to: pon_base
+priority: 1
+time_required: 900
+condition_influence_min: 0
+condition_influence_max: 999
+condition_professionalism_min: 0
+condition_professionalism_max: 999
+condition_stress_min: 0
+condition_stress_max: 999
+condition_training_min: 0
+condition_training_max: 999
+condition_miss_min: 0
+condition_miss_max: 999
+condition_sleep_quality_min: 0
+condition_sleep_quality_max: 999
+notes: SSからポンへ進化
+
+===EVOLUTION===
+from: pon_base
+to: banka
+priority: 10
+time_required: 1800
+condition_influence_min: 80
+condition_influence_max: 999
+condition_professionalism_min: 5
+condition_professionalism_max: 999
+condition_stress_min: 0
+condition_stress_max: 4
+condition_training_min: 3
+condition_training_max: 999
+condition_miss_min: 0
+condition_miss_max: 2
+condition_sleep_quality_min: 1
+condition_sleep_quality_max: 999
+notes: カリスマ・リーダー型ルート
+
+===EVOLUTION===
+from: pon_base
+to: flammy
+priority: 9
+time_required: 1800
+condition_influence_min: 20
+condition_influence_max: 999
+condition_professionalism_min: 3
+condition_professionalism_max: 999
+condition_stress_min: 0
+condition_stress_max: 2
+condition_training_min: 3
+condition_training_max: 999
+condition_miss_min: 0
+condition_miss_max: 1
+condition_sleep_quality_min: 2
+condition_sleep_quality_max: 999
+notes: 癒し・丁寧育成ルート
+
+===EVOLUTION===
+from: pon_base
+to: minato
+priority: 8
+time_required: 1800
+condition_influence_min: 30
+condition_influence_max: 70
+condition_professionalism_min: 3
+condition_professionalism_max: 5
+condition_stress_min: 0
+condition_stress_max: 4
+condition_training_min: 2
+condition_training_max: 8
+condition_miss_min: 0
+condition_miss_max: 3
+condition_sleep_quality_min: 1
+condition_sleep_quality_max: 999
+notes: バランス万能型ルート
+
+===EVOLUTION===
+from: pon_base
+to: kou
+priority: 8
+time_required: 1800
+condition_influence_min: 40
+condition_influence_max: 999
+condition_professionalism_min: 2
+condition_professionalism_max: 999
+condition_stress_min: 0
+condition_stress_max: 5
+condition_training_min: 10
+condition_training_max: 999
+condition_miss_min: 0
+condition_miss_max: 4
+condition_sleep_quality_min: 0
+condition_sleep_quality_max: 999
+notes: 努力・成長型ルート
+
+===EVOLUTION===
+from: pon_base
+to: ito
+priority: 8
+time_required: 1800
+condition_influence_min: 20
+condition_influence_max: 999
+condition_professionalism_min: 4
+condition_professionalism_max: 999
+condition_stress_min: 0
+condition_stress_max: 3
+condition_training_min: 2
+condition_training_max: 999
+condition_miss_min: 0
+condition_miss_max: 3
+condition_sleep_quality_min: 2
+condition_sleep_quality_max: 999
+notes: 知性・安定睡眠ルート
+
+===EVOLUTION===
+from: pon_base
+to: kakapopo
+priority: 20
+time_required: 1800
+condition_influence_min: 0
+condition_influence_max: 999
+condition_professionalism_min: 0
+condition_professionalism_max: 999
+condition_stress_min: 5
+condition_stress_max: 999
+condition_training_min: 5
+condition_training_max: 999
+condition_miss_min: 5
+condition_miss_max: 999
+condition_sleep_quality_min: 0
+condition_sleep_quality_max: 999
+notes: 隠し・特殊条件ルート

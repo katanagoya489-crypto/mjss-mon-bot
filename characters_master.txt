@@ -1,0 +1,659 @@
+===CHARACTER===
+character_id: egg
+name: たまご
+stage: egg
+type: egg
+rarity: normal
+is_secret: false
+
+evolution_group: main
+evolution_next: mj_base
+evolution_time: 300
+evolution_priority: 1
+
+condition_influence_min: 0
+condition_influence_max: 999
+condition_professionalism_min: 0
+condition_professionalism_max: 999
+condition_stress_min: 0
+condition_stress_max: 999
+condition_training_min: 0
+condition_training_max: 999
+condition_miss_min: 0
+condition_miss_max: 999
+condition_sleep_quality_min: 0
+condition_sleep_quality_max: 999
+
+base_mental_endurance: 3
+base_condition: 5
+base_professionalism: 1
+base_stress: 0
+base_influence: 0
+base_training_count: 0
+
+base_stamina: 10
+base_expression: 10
+base_performance: 10
+base_stability: 10
+base_response: 10
+base_intelligence: 10
+
+growth_stamina: 1
+growth_expression: 1
+growth_performance: 1
+growth_stability: 1
+growth_response: 1
+growth_intelligence: 1
+
+iv_stamina_min: 0
+iv_stamina_max: 1
+iv_expression_min: 0
+iv_expression_max: 1
+iv_performance_min: 0
+iv_performance_max: 1
+iv_stability_min: 0
+iv_stability_max: 1
+iv_response_min: 0
+iv_response_max: 1
+iv_intelligence_min: 0
+iv_intelligence_max: 1
+
+trait_pool: none
+gacha_unlock_group: default
+tag_evolution_group: none
+
+profile: すべての始まりになるたまご。
+
+===CHARACTER===
+character_id: mj_base
+name: MJ
+stage: mj
+type: base
+rarity: normal
+is_secret: false
+
+evolution_group: main
+evolution_next: ss_base
+evolution_time: 600
+evolution_priority: 1
+
+condition_influence_min: 0
+condition_influence_max: 999
+condition_professionalism_min: 0
+condition_professionalism_max: 999
+condition_stress_min: 0
+condition_stress_max: 999
+condition_training_min: 0
+condition_training_max: 999
+condition_miss_min: 0
+condition_miss_max: 999
+condition_sleep_quality_min: 0
+condition_sleep_quality_max: 999
+
+base_mental_endurance: 3
+base_condition: 5
+base_professionalism: 1
+base_stress: 0
+base_influence: 5
+base_training_count: 0
+
+base_stamina: 30
+base_expression: 20
+base_performance: 20
+base_stability: 20
+base_response: 20
+base_intelligence: 20
+
+growth_stamina: 3
+growth_expression: 2
+growth_performance: 2
+growth_stability: 2
+growth_response: 2
+growth_intelligence: 2
+
+iv_stamina_min: 0
+iv_stamina_max: 2
+iv_expression_min: 0
+iv_expression_max: 2
+iv_performance_min: 0
+iv_performance_max: 2
+iv_stability_min: 0
+iv_stability_max: 2
+iv_response_min: 0
+iv_response_max: 2
+iv_intelligence_min: 0
+iv_intelligence_max: 2
+
+trait_pool: main
+gacha_unlock_group: default
+tag_evolution_group: none
+
+profile: まだ幼いが、配信者としての芽が出始めた段階。
+
+===CHARACTER===
+character_id: ss_base
+name: SS
+stage: ss
+type: base
+rarity: normal
+is_secret: false
+
+evolution_group: main
+evolution_next: pon_base
+evolution_time: 900
+evolution_priority: 1
+
+condition_influence_min: 0
+condition_influence_max: 999
+condition_professionalism_min: 0
+condition_professionalism_max: 999
+condition_stress_min: 0
+condition_stress_max: 999
+condition_training_min: 0
+condition_training_max: 999
+condition_miss_min: 0
+condition_miss_max: 999
+condition_sleep_quality_min: 0
+condition_sleep_quality_max: 999
+
+base_mental_endurance: 3
+base_condition: 5
+base_professionalism: 2
+base_stress: 0
+base_influence: 10
+base_training_count: 0
+
+base_stamina: 45
+base_expression: 28
+base_performance: 28
+base_stability: 28
+base_response: 28
+base_intelligence: 28
+
+growth_stamina: 4
+growth_expression: 3
+growth_performance: 3
+growth_stability: 3
+growth_response: 3
+growth_intelligence: 3
+
+iv_stamina_min: 0
+iv_stamina_max: 3
+iv_expression_min: 0
+iv_expression_max: 3
+iv_performance_min: 0
+iv_performance_max: 3
+iv_stability_min: 0
+iv_stability_max: 3
+iv_response_min: 0
+iv_response_max: 3
+iv_intelligence_min: 0
+iv_intelligence_max: 3
+
+trait_pool: main
+gacha_unlock_group: default
+tag_evolution_group: none
+
+profile: 少しずつ個性が見え始める段階。
+
+===CHARACTER===
+character_id: pon_base
+name: ポン
+stage: pon
+type: base
+rarity: normal
+is_secret: false
+
+evolution_group: main
+evolution_next: adult_split
+evolution_time: 1800
+evolution_priority: 1
+
+condition_influence_min: 0
+condition_influence_max: 999
+condition_professionalism_min: 0
+condition_professionalism_max: 999
+condition_stress_min: 0
+condition_stress_max: 999
+condition_training_min: 0
+condition_training_max: 999
+condition_miss_min: 0
+condition_miss_max: 999
+condition_sleep_quality_min: 0
+condition_sleep_quality_max: 999
+
+base_mental_endurance: 3
+base_condition: 5
+base_professionalism: 3
+base_stress: 0
+base_influence: 20
+base_training_count: 0
+
+base_stamina: 65
+base_expression: 40
+base_performance: 40
+base_stability: 40
+base_response: 40
+base_intelligence: 40
+
+growth_stamina: 5
+growth_expression: 4
+growth_performance: 4
+growth_stability: 4
+growth_response: 4
+growth_intelligence: 4
+
+iv_stamina_min: 0
+iv_stamina_max: 4
+iv_expression_min: 0
+iv_expression_max: 4
+iv_performance_min: 0
+iv_performance_max: 4
+iv_stability_min: 0
+iv_stability_max: 4
+iv_response_min: 0
+iv_response_max: 4
+iv_intelligence_min: 0
+iv_intelligence_max: 4
+
+trait_pool: main
+gacha_unlock_group: default
+tag_evolution_group: starter
+
+profile: 成熟期への分岐を決める大事な時期。
+
+===CHARACTER===
+character_id: banka
+name: 赫音万化
+stage: adult
+type: charisma
+rarity: normal
+is_secret: false
+
+evolution_group: adult_main
+evolution_next: none
+evolution_time: 0
+evolution_priority: 10
+
+condition_influence_min: 80
+condition_influence_max: 999
+condition_professionalism_min: 5
+condition_professionalism_max: 999
+condition_stress_min: 0
+condition_stress_max: 4
+condition_training_min: 3
+condition_training_max: 999
+condition_miss_min: 0
+condition_miss_max: 2
+condition_sleep_quality_min: 1
+condition_sleep_quality_max: 999
+
+base_mental_endurance: 4
+base_condition: 5
+base_professionalism: 5
+base_stress: 0
+base_influence: 80
+base_training_count: 3
+
+base_stamina: 110
+base_expression: 85
+base_performance: 95
+base_stability: 80
+base_response: 78
+base_intelligence: 75
+
+growth_stamina: 7
+growth_expression: 6
+growth_performance: 7
+growth_stability: 5
+growth_response: 5
+growth_intelligence: 5
+
+iv_stamina_min: 1
+iv_stamina_max: 5
+iv_expression_min: 1
+iv_expression_max: 5
+iv_performance_min: 2
+iv_performance_max: 5
+iv_stability_min: 1
+iv_stability_max: 4
+iv_response_min: 1
+iv_response_max: 4
+iv_intelligence_min: 1
+iv_intelligence_max: 4
+
+trait_pool: charisma
+gacha_unlock_group: adult_default
+tag_evolution_group: leader
+
+profile: 高い影響力とプロ意識で周囲を引っ張るカリスマ型。
+
+===CHARACTER===
+character_id: flammy
+name: 梅星ふらみぃ
+stage: adult
+type: heal
+rarity: normal
+is_secret: false
+
+evolution_group: adult_main
+evolution_next: none
+evolution_time: 0
+evolution_priority: 9
+
+condition_influence_min: 20
+condition_influence_max: 999
+condition_professionalism_min: 3
+condition_professionalism_max: 999
+condition_stress_min: 0
+condition_stress_max: 2
+condition_training_min: 3
+condition_training_max: 999
+condition_miss_min: 0
+condition_miss_max: 1
+condition_sleep_quality_min: 2
+condition_sleep_quality_max: 999
+
+base_mental_endurance: 4
+base_condition: 5
+base_professionalism: 4
+base_stress: 0
+base_influence: 50
+base_training_count: 3
+
+base_stamina: 95
+base_expression: 90
+base_performance: 70
+base_stability: 95
+base_response: 72
+base_intelligence: 80
+
+growth_stamina: 5
+growth_expression: 6
+growth_performance: 4
+growth_stability: 7
+growth_response: 4
+growth_intelligence: 5
+
+iv_stamina_min: 1
+iv_stamina_max: 4
+iv_expression_min: 2
+iv_expression_max: 5
+iv_performance_min: 0
+iv_performance_max: 3
+iv_stability_min: 2
+iv_stability_max: 5
+iv_response_min: 0
+iv_response_max: 3
+iv_intelligence_min: 1
+iv_intelligence_max: 4
+
+trait_pool: heal
+gacha_unlock_group: adult_default
+tag_evolution_group: support
+
+profile: 丁寧な育成でたどり着く、癒しと安心感の成熟期。
+
+===CHARACTER===
+character_id: minato
+name: 青羽湊音
+stage: adult
+type: balance
+rarity: normal
+is_secret: false
+
+evolution_group: adult_main
+evolution_next: none
+evolution_time: 0
+evolution_priority: 8
+
+condition_influence_min: 30
+condition_influence_max: 70
+condition_professionalism_min: 3
+condition_professionalism_max: 5
+condition_stress_min: 0
+condition_stress_max: 4
+condition_training_min: 2
+condition_training_max: 8
+condition_miss_min: 0
+condition_miss_max: 3
+condition_sleep_quality_min: 1
+condition_sleep_quality_max: 999
+
+base_mental_endurance: 4
+base_condition: 5
+base_professionalism: 4
+base_stress: 0
+base_influence: 55
+base_training_count: 4
+
+base_stamina: 100
+base_expression: 82
+base_performance: 82
+base_stability: 82
+base_response: 82
+base_intelligence: 82
+
+growth_stamina: 6
+growth_expression: 5
+growth_performance: 5
+growth_stability: 5
+growth_response: 5
+growth_intelligence: 5
+
+iv_stamina_min: 1
+iv_stamina_max: 4
+iv_expression_min: 1
+iv_expression_max: 4
+iv_performance_min: 1
+iv_performance_max: 4
+iv_stability_min: 1
+iv_stability_max: 4
+iv_response_min: 1
+iv_response_max: 4
+iv_intelligence_min: 1
+iv_intelligence_max: 4
+
+trait_pool: balance
+gacha_unlock_group: adult_default
+tag_evolution_group: duo
+
+profile: 極端に偏らない育成で到達する万能型の成熟期。
+
+===CHARACTER===
+character_id: kou
+name: 虹守コウ
+stage: adult
+type: growth
+rarity: normal
+is_secret: false
+
+evolution_group: adult_main
+evolution_next: none
+evolution_time: 0
+evolution_priority: 8
+
+condition_influence_min: 40
+condition_influence_max: 999
+condition_professionalism_min: 2
+condition_professionalism_max: 999
+condition_stress_min: 0
+condition_stress_max: 5
+condition_training_min: 10
+condition_training_max: 999
+condition_miss_min: 0
+condition_miss_max: 4
+condition_sleep_quality_min: 0
+condition_sleep_quality_max: 999
+
+base_mental_endurance: 4
+base_condition: 5
+base_professionalism: 3
+base_stress: 1
+base_influence: 60
+base_training_count: 10
+
+base_stamina: 105
+base_expression: 78
+base_performance: 88
+base_stability: 72
+base_response: 84
+base_intelligence: 70
+
+growth_stamina: 7
+growth_expression: 4
+growth_performance: 6
+growth_stability: 4
+growth_response: 6
+growth_intelligence: 4
+
+iv_stamina_min: 1
+iv_stamina_max: 5
+iv_expression_min: 0
+iv_expression_max: 4
+iv_performance_min: 1
+iv_performance_max: 5
+iv_stability_min: 0
+iv_stability_max: 3
+iv_response_min: 1
+iv_response_max: 5
+iv_intelligence_min: 0
+iv_intelligence_max: 3
+
+trait_pool: growth
+gacha_unlock_group: adult_default
+tag_evolution_group: duo
+
+profile: 努力回数を積み重ねて到達する成長型の成熟期。
+
+===CHARACTER===
+character_id: ito
+name: 和澄いと
+stage: adult
+type: smart
+rarity: normal
+is_secret: false
+
+evolution_group: adult_main
+evolution_next: none
+evolution_time: 0
+evolution_priority: 8
+
+condition_influence_min: 20
+condition_influence_max: 999
+condition_professionalism_min: 4
+condition_professionalism_max: 999
+condition_stress_min: 0
+condition_stress_max: 3
+condition_training_min: 2
+condition_training_max: 999
+condition_miss_min: 0
+condition_miss_max: 3
+condition_sleep_quality_min: 2
+condition_sleep_quality_max: 999
+
+base_mental_endurance: 4
+base_condition: 5
+base_professionalism: 4
+base_stress: 0
+base_influence: 45
+base_training_count: 3
+
+base_stamina: 90
+base_expression: 88
+base_performance: 74
+base_stability: 85
+base_response: 78
+base_intelligence: 98
+
+growth_stamina: 4
+growth_expression: 5
+growth_performance: 4
+growth_stability: 5
+growth_response: 4
+growth_intelligence: 7
+
+iv_stamina_min: 0
+iv_stamina_max: 3
+iv_expression_min: 1
+iv_expression_max: 4
+iv_performance_min: 0
+iv_performance_max: 3
+iv_stability_min: 1
+iv_stability_max: 4
+iv_response_min: 0
+iv_response_max: 3
+iv_intelligence_min: 2
+iv_intelligence_max: 5
+
+trait_pool: smart
+gacha_unlock_group: adult_default
+tag_evolution_group: thinker
+
+profile: 安定した睡眠と高い理解力で到達する知性型成熟期。
+
+===CHARACTER===
+character_id: kakapopo
+name: カカポンポコ
+stage: adult
+type: secret
+rarity: secret
+is_secret: true
+
+evolution_group: adult_secret
+evolution_next: none
+evolution_time: 0
+evolution_priority: 20
+
+condition_influence_min: 0
+condition_influence_max: 999
+condition_professionalism_min: 0
+condition_professionalism_max: 999
+condition_stress_min: 5
+condition_stress_max: 999
+condition_training_min: 5
+condition_training_max: 999
+condition_miss_min: 5
+condition_miss_max: 999
+condition_sleep_quality_min: 0
+condition_sleep_quality_max: 999
+
+base_mental_endurance: 5
+base_condition: 5
+base_professionalism: 2
+base_stress: 5
+base_influence: 35
+base_training_count: 5
+
+base_stamina: 120
+base_expression: 70
+base_performance: 72
+base_stability: 68
+base_response: 75
+base_intelligence: 85
+
+growth_stamina: 8
+growth_expression: 4
+growth_performance: 4
+growth_stability: 3
+growth_response: 5
+growth_intelligence: 6
+
+iv_stamina_min: 2
+iv_stamina_max: 5
+iv_expression_min: 0
+iv_expression_max: 3
+iv_performance_min: 0
+iv_performance_max: 3
+iv_stability_min: 0
+iv_stability_max: 2
+iv_response_min: 1
+iv_response_max: 4
+iv_intelligence_min: 1
+iv_intelligence_max: 5
+
+trait_pool: secret
+gacha_unlock_group: hidden
+tag_evolution_group: mystery
+
+profile: 特殊条件を満たした時だけ現れる隠し成熟期。
