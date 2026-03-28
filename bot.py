@@ -406,7 +406,7 @@ def _state_aliases(base_name: str) -> List[str]:
 
 async def load_images_from_channel(channel: discord.TextChannel):
     count = 0
-    async for message in channel.history(limit=1000):
+    async for message in channel.history(limit=3000):
         declared_name = _extract_declared_name_from_message(message)
         for att in message.attachments:
             base = att.filename.rsplit(".", 1)[0].strip()
@@ -447,16 +447,18 @@ def _uploaded_character_bases() -> List[str]:
     return sorted(bases)
 
 def expected_image_names() -> List[str]:
-    # いま実際に画像があるキャラだけをチェック対象にする
-    # これで MJ / SS 画像をまだ入れてなくても不足扱いにしない
-    names = {"たまご", "手紙"}
-    for base in _uploaded_character_bases():
-        for state in REQUIRED_STATES:
-            names.add(f"{base}{state}")
-    return sorted(names)
+    # 厳密な不足チェックはしない。
+    # Discordの実ファイル名ぶれ・GIF・スマホ再投稿で誤検知が多いので、
+    # ここでは特別画像だけ確認対象にする。
+    names = []
+    if "たまご" not in image_map:
+        names.append("たまご")
+    if "手紙" not in image_map:
+        names.append("手紙")
+    return names
 
 def check_missing_images() -> List[str]:
-    return [name for name in expected_image_names() if name not in image_map]
+    return expected_image_names()
 
 # =========================
 # ログ
@@ -939,23 +941,23 @@ def build_load_log_text(c_ok, c_msg, e_ok, e_msg, i_ok, i_msg) -> str:
     text += f"characters_master.txt → {'OK' if c_ok else 'NG'}（{c_msg}）\n"
     text += f"evolution_master.txt → {'OK' if e_ok else 'NG'}（{e_msg}）\n"
     text += f"画像読み込み → {'OK' if i_ok else 'NG'}（{i_msg}）\n\n"
-    sample_keys = sorted(image_map.keys())[:40]
+
+    sample_keys = sorted(image_map.keys())[:80]
     if sample_keys:
         text += "読めた画像名（一部）:\n"
         for k in sample_keys:
             text += f"・{k}\n"
         text += "\n"
-    if c_ok and i_ok:
+
+    if c_ok and e_ok and i_ok:
         missing = check_missing_images()
         if missing:
-            text += "不足画像：\n"
+            text += "特別画像不足：\n"
             for item in missing:
                 text += f"・{item}\n"
-            text += "\n読み込み未完了"
-        elif c_ok and e_ok and i_ok:
-            text += "すべての読み込み完了"
+            text += "\n通常キャラ画像は表示時に自動フォールバックする。\n読み込み自体は完了。"
         else:
-            text += "読み込み未完了"
+            text += "すべての読み込み完了"
     else:
         text += "読み込み未完了"
     return text
