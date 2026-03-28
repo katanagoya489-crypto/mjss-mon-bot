@@ -500,6 +500,8 @@ def update_ui_state(state: dict):
 
 
 def state_image_name(state: dict) -> str:
+    if is_letter_state(state):
+        return "手紙"
     if state.get("stage") == "egg":
         return "たまご"
 
@@ -734,28 +736,57 @@ def sleep_status_text(state: dict) -> str:
     return "起きてる"
 
 
+def is_egg_state(state: dict) -> bool:
+    return state.get("stage") == "egg"
+
+def is_letter_state(state: dict) -> bool:
+    return state.get("life", 1) <= 0 and state.get("stage") != "egg"
+
+def is_non_care_state(state: dict) -> bool:
+    return is_egg_state(state) or is_letter_state(state)
+
+
 def build_status_embed(user_id: str, slot_no: int, state: dict) -> discord.Embed:
     profile = get_profile(user_id)
     image_name = state_image_name(state)
     image_url = image_map.get(image_name, "")
 
+    title_name = "手紙" if is_letter_state(state) else state["character_name"]
+    stage_text = "letter" if is_letter_state(state) else state["stage"]
+    state_text = "おわかれ" if is_letter_state(state) else state["ui_state"]
+
     embed = discord.Embed(
-        title=f"【セーブ{slot_no}】{state['character_name']}",
+        title=f"【セーブ{slot_no}】{title_name}",
         description=(
-            f"段階: **{state['stage']}**
+            f"段階: **{stage_text}**
 "
             f"表示: **{state['visual_name']}**
 "
-            f"状態: **{state['ui_state']}**
+            f"状態: **{state_text}**
 "
             f"最終更新(JST): {fmt_dt(parse_dt(state['last_update']))}"
         ),
         color=discord.Color.magenta(),
     )
 
-    embed.add_field(
-        name="お世話",
-        value=(
+    if is_egg_state(state):
+        care_value = (
+            "🥚 たまごの状態
+"
+            "まだごはん・あそぶ・トレーニングはできない。
+"
+            "時間がたつと孵化や進化に進む。"
+        )
+    elif is_letter_state(state):
+        care_value = (
+            "✉️ おわかれ状態
+"
+            "この状態ではお世話できない。
+"
+            "下の『卵にもどる』で次の育成を始める。"
+        )
+    else:
+        care_value = (
             f"❤️ ライフ {life_hearts(state['life'])}
 "
             f"🍖 コンディション {care_bar(state['condition'], 5)}
@@ -769,9 +800,9 @@ def build_status_embed(user_id: str, slot_no: int, state: dict) -> discord.Embed
             f"😴 ねむけ {sleep_status_text(state)}
 "
             f"⚠️ お世話ミス {state['care_miss']}回"
-        ),
-        inline=False,
-    )
+        )
+
+    embed.add_field(name="お世話", value=care_value, inline=False)
 
     embed.add_field(
         name="育成メモ",
@@ -955,22 +986,18 @@ async def refresh_status_message(user_id: str, slot_no: int):
         return
 
     state = apply_time_passage(state)
-    state, evolved = check_and_apply_evolution(state)
-    if evolved:
-        unlock_dex(user_id, state["character_id"], state["character_name"])
-        unlock_visual(user_id, state["character_name"])
+
+    if not is_letter_state(state):
+        state, evolved = check_and_apply_evolution(state)
+        if evolved:
+            unlock_dex(user_id, state["character_id"], state["character_name"])
+            unlock_visual(user_id, state["character_name"])
+
     save_slot(user_id, slot_no, state)
 
     msg = await get_or_create_status_message(thread, user_id, slot_no)
-    image_name = state_image_name(state)
-    image_url = image_map.get(image_name, "")
-    text = build_state_text(user_id, slot_no, state)
-    if image_url:
-        text += f"\n\n画像: {image_name}\n{image_url}"
-    else:
-        text += f"\n\n画像: {image_name}（未読込）"
-
-    await msg.edit(content=text, view=CareView(user_id, slot_no))
+    embed = build_status_embed(user_id, slot_no, state)
+    await msg.edit(content=None, embed=embed, view=CareView(user_id, slot_no))
 
 # =========================
 # UI
@@ -1159,6 +1186,9 @@ class CareView(discord.ui.View):
         if not await self._ensure_thread(interaction):
             return
         state = self._load()
+        if is_non_care_state(state):
+            await interaction.response.send_message("たまごと手紙にはごはんできないよ。", ephemeral=True)
+            return
         state["condition"] = min(5, state["condition"] + 2)
         state["stress"] = max(0, state["stress"] - 1)
         state["ui_state"] = "ごはん"
@@ -1172,6 +1202,9 @@ class CareView(discord.ui.View):
         if not await self._ensure_thread(interaction):
             return
         state = self._load()
+        if is_non_care_state(state):
+            await interaction.response.send_message("たまごと手紙ではあそべないよ。", ephemeral=True)
+            return
         state["stress"] = max(0, state["stress"] - 1)
         state["influence"] += 2
         state["ui_state"] = "よろこび"
@@ -1185,6 +1218,9 @@ class CareView(discord.ui.View):
         if not await self._ensure_thread(interaction):
             return
         state = self._load()
+        if is_non_care_state(state):
+            await interaction.response.send_message("たまごと手紙はトレーニングできないよ。", ephemeral=True)
+            return
         state["training_count"] += 1
         state["influence"] += 3
         state["stress"] = min(9, state["stress"] + 1)
@@ -1201,6 +1237,9 @@ class CareView(discord.ui.View):
         if not await self._ensure_thread(interaction):
             return
         state = self._load()
+        if is_non_care_state(state):
+            await interaction.response.send_message("たまごと手紙は休ませる操作はいらないよ。", ephemeral=True)
+            return
         state["is_sleeping"] = not state.get("is_sleeping", False)
         state["last_action_text"] = "休ませた" if state["is_sleeping"] else "起こした"
         update_ui_state(state)
@@ -1214,6 +1253,20 @@ class CareView(discord.ui.View):
             return
         await refresh_status_message(self.user_id, self.slot_no)
         await interaction.response.defer()
+
+    @discord.ui.button(label="卵にもどる", style=discord.ButtonStyle.danger)
+    async def rebirth(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await self._ensure_thread(interaction):
+            return
+        slot = get_slot(self.user_id, self.slot_no)
+        state = load_state(slot)
+        state = apply_time_passage(state)
+        if not is_letter_state(state):
+            await interaction.response.send_message("まだお別れしてないから戻れないよ。", ephemeral=True)
+            return
+        apply_reincarnation(self.user_id, self.slot_no, state)
+        await refresh_status_message(self.user_id, self.slot_no)
+        await interaction.response.send_message("卵にもどったよ。次の育成を始めよう。", ephemeral=True)
 
     @discord.ui.button(label="その他", style=discord.ButtonStyle.secondary)
     async def menu(self, interaction: discord.Interaction, button: discord.ui.Button):
