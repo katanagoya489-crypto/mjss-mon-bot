@@ -758,12 +758,9 @@ def build_status_embed(user_id: str, slot_no: int, state: dict) -> discord.Embed
     embed = discord.Embed(
         title=f"【セーブ{slot_no}】{title_name}",
         description=(
-            f"段階: **{stage_text}**
-"
-            f"表示: **{state['visual_name']}**
-"
-            f"状態: **{state_text}**
-"
+            f"段階: **{stage_text}**\n"
+            f"表示: **{state['visual_name']}**\n"
+            f"状態: **{state_text}**\n"
             f"最終更新(JST): {fmt_dt(parse_dt(state['last_update']))}"
         ),
         color=discord.Color.magenta(),
@@ -771,34 +768,24 @@ def build_status_embed(user_id: str, slot_no: int, state: dict) -> discord.Embed
 
     if is_egg_state(state):
         care_value = (
-            "🥚 たまごの状態
-"
-            "まだごはん・あそぶ・トレーニングはできない。
-"
+            "🥚 たまごの状態\n"
+            "まだごはん・あそぶ・トレーニングはできない。\n"
             "時間がたつと孵化や進化に進む。"
         )
     elif is_letter_state(state):
         care_value = (
-            "✉️ おわかれ状態
-"
-            "この状態ではお世話できない。
-"
+            "✉️ おわかれ状態\n"
+            "この状態ではお世話できない。\n"
             "下の『卵にもどる』で次の育成を始める。"
         )
     else:
         care_value = (
-            f"❤️ ライフ {life_hearts(state['life'])}
-"
-            f"🍖 コンディション {care_bar(state['condition'], 5)}
-"
-            f"🎤 ノリ {care_bar(_clamp(state['influence'], 0, 5), 5)}
-"
-            f"🧠 しつけ {care_bar(_clamp(state['professionalism'], 0, 5), 5)}
-"
-            f"💢 ストレス {care_bar(_clamp(state['stress'], 0, 5), 5)}
-"
-            f"😴 ねむけ {sleep_status_text(state)}
-"
+            f"❤️ ライフ {life_hearts(state['life'])}\n"
+            f"🍖 コンディション {care_bar(state['condition'], 5)}\n"
+            f"🎤 ノリ {care_bar(_clamp(state['influence'], 0, 5), 5)}\n"
+            f"🧠 しつけ {care_bar(_clamp(state['professionalism'], 0, 5), 5)}\n"
+            f"💢 ストレス {care_bar(_clamp(state['stress'], 0, 5), 5)}\n"
+            f"😴 ねむけ {sleep_status_text(state)}\n"
             f"⚠️ お世話ミス {state['care_miss']}回"
         )
 
@@ -807,10 +794,8 @@ def build_status_embed(user_id: str, slot_no: int, state: dict) -> discord.Embed
     embed.add_field(
         name="育成メモ",
         value=(
-            f"✨ 努力回数 {state['training_count']}回
-"
-            f"🛌 睡眠品質 {state['sleep_quality']}
-"
+            f"✨ 努力回数 {state['training_count']}回\n"
+            f"🛌 睡眠品質 {state['sleep_quality']}\n"
             f"📝 前回: {state.get('last_action_text', '-')}"
         ),
         inline=False,
@@ -819,16 +804,11 @@ def build_status_embed(user_id: str, slot_no: int, state: dict) -> discord.Embed
     embed.add_field(
         name="バトル能力",
         value=(
-            f"体力 {state['stamina']} {stat_bar(state['stamina'])}
-"
-            f"表現 {state['expression']} {stat_bar(state['expression'])}
-"
-            f"歌唱 {state['performance']} {stat_bar(state['performance'])}
-"
-            f"安定 {state['stability']} {stat_bar(state['stability'])}
-"
-            f"反応 {state['response']} {stat_bar(state['response'])}
-"
+            f"体力 {state['stamina']} {stat_bar(state['stamina'])}\n"
+            f"表現 {state['expression']} {stat_bar(state['expression'])}\n"
+            f"歌唱 {state['performance']} {stat_bar(state['performance'])}\n"
+            f"安定 {state['stability']} {stat_bar(state['stability'])}\n"
+            f"反応 {state['response']} {stat_bar(state['response'])}\n"
             f"知性 {state['intelligence']} {stat_bar(state['intelligence'])}"
         ),
         inline=False,
