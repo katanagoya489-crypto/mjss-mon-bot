@@ -1,6 +1,7 @@
 
 import os
 import json
+import re
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
@@ -370,10 +371,13 @@ def _extract_declared_name_from_message(message: discord.Message) -> str:
     content = (message.content or "").strip()
     if not content:
         return ""
-    for line in content.splitlines():
-        line = line.strip()
-        if line.lower().startswith("name:"):
-            return line.split(":", 1)[1].strip()
+    for raw_line in content.splitlines():
+        line = raw_line.strip()
+        low = line.lower()
+        if low.startswith("name:") or low.startswith("name："):
+            parts = re.split(r"[:：]", line, maxsplit=1)
+            if len(parts) == 2:
+                return parts[1].strip()
     return ""
 
 def _register_image_alias(name: str, url: str):
@@ -390,6 +394,16 @@ def _register_image_alias(name: str, url: str):
     if compact.startswith("name:"):
         image_map[compact.split(":", 1)[1].strip()] = url
 
+def _state_aliases(base_name: str) -> List[str]:
+    aliases = []
+    compact = (base_name or "").replace(" ", "").replace("　", "")
+    if not compact:
+        return aliases
+    # 幼年期の略称画像を、通常状態の別名としても拾えるようにする
+    if compact in ("MJ", "SS", "ポン"):
+        aliases.append(f"{compact}通常")
+    return aliases
+
 async def load_images_from_channel(channel: discord.TextChannel):
     count = 0
     async for message in channel.history(limit=1000):
@@ -397,8 +411,12 @@ async def load_images_from_channel(channel: discord.TextChannel):
         for att in message.attachments:
             base = att.filename.rsplit(".", 1)[0].strip()
             _register_image_alias(base, att.url)
+            for alias in _state_aliases(base):
+                _register_image_alias(alias, att.url)
             if declared_name:
                 _register_image_alias(declared_name, att.url)
+                for alias in _state_aliases(declared_name):
+                    _register_image_alias(alias, att.url)
             count += 1
     return count
 
@@ -541,12 +559,14 @@ def update_ui_state(state: dict):
 
 def state_image_name(state: dict) -> str:
     if is_letter_state(state):
-        return "手紙"
+        if "手紙" in image_map:
+            return "手紙"
     if state.get("stage") == "egg":
-        return "たまご"
+        if "たまご" in image_map:
+            return "たまご"
 
-    visual_name = state.get("visual_name") or ""
-    character_name = state.get("character_name") or ""
+    visual_name = (state.get("visual_name") or "").strip()
+    character_name = (state.get("character_name") or "").strip()
     current = state.get("ui_state", "通常")
 
     candidates = [
@@ -558,7 +578,6 @@ def state_image_name(state: dict) -> str:
         f"{character_name}通常" if character_name else "",
     ]
 
-    # 幼年期画像がまだ無い時は、たまごにフォールバック
     if state.get("stage") in ("mj", "ss", "pon"):
         candidates.append("たまご")
 
@@ -566,7 +585,14 @@ def state_image_name(state: dict) -> str:
         if name and name in image_map:
             return name
 
-    return candidates[0] if candidates and candidates[0] else "たまご"
+    # 部分一致も最後に試す
+    for key in image_map.keys():
+        if visual_name and visual_name in key and current in key:
+            return key
+        if character_name and character_name in key and current in key:
+            return key
+
+    return "たまご" if "たまご" in image_map else (candidates[0] if candidates and candidates[0] else "")
 
 def apply_time_passage(state: dict) -> dict:
     now = now_jst()
@@ -913,6 +939,12 @@ def build_load_log_text(c_ok, c_msg, e_ok, e_msg, i_ok, i_msg) -> str:
     text += f"characters_master.txt → {'OK' if c_ok else 'NG'}（{c_msg}）\n"
     text += f"evolution_master.txt → {'OK' if e_ok else 'NG'}（{e_msg}）\n"
     text += f"画像読み込み → {'OK' if i_ok else 'NG'}（{i_msg}）\n\n"
+    sample_keys = sorted(image_map.keys())[:40]
+    if sample_keys:
+        text += "読めた画像名（一部）:\n"
+        for k in sample_keys:
+            text += f"・{k}\n"
+        text += "\n"
     if c_ok and i_ok:
         missing = check_missing_images()
         if missing:
