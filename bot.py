@@ -97,6 +97,8 @@ def init_db():
         state_json TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
+        thread_id TEXT DEFAULT '',
+        status_message_id TEXT DEFAULT '',
         PRIMARY KEY (user_id, slot_no)
     )
     """)
@@ -125,6 +127,12 @@ def init_db():
         PRIMARY KEY (user_id, partner_id)
     )
     """)
+    cur.execute("PRAGMA table_info(save_slots)")
+    save_slot_cols = {row["name"] for row in cur.fetchall()}
+    if "thread_id" not in save_slot_cols:
+        cur.execute("ALTER TABLE save_slots ADD COLUMN thread_id TEXT DEFAULT ''")
+    if "status_message_id" not in save_slot_cols:
+        cur.execute("ALTER TABLE save_slots ADD COLUMN status_message_id TEXT DEFAULT ''")
     conn.commit()
     conn.close()
 
@@ -143,8 +151,8 @@ def ensure_profile(user_id: str):
             INSERT OR IGNORE INTO save_slots (
                 user_id, slot_no, save_version, save_status, slot_name,
                 current_character_id, current_character_name, current_stage,
-                visual_name, state_json, created_at, updated_at
-            ) VALUES (?, ?, ?, 'empty', ?, '', '', '', '', '', ?, ?)
+                visual_name, state_json, created_at, updated_at, thread_id, status_message_id
+            ) VALUES (?, ?, ?, 'empty', ?, '', '', '', '', '', ?, ?, '', '')
             """, (user_id, slot_no, SAVE_VERSION, f"セーブ{slot_no}", now, now))
     conn.commit()
     conn.close()
@@ -224,6 +232,24 @@ def save_slot(user_id: str, slot_no: int, state: dict, status: str = "normal", s
     conn.commit()
     conn.close()
 
+def set_slot_thread_info(user_id: str, slot_no: int, thread_id: Optional[int], status_message_id: Optional[int]):
+    ensure_profile(user_id)
+    conn = db()
+    cur = conn.cursor()
+    cur.execute("""
+    UPDATE save_slots
+    SET thread_id=?, status_message_id=?, updated_at=?
+    WHERE user_id=? AND slot_no=?
+    """, (
+        str(thread_id) if thread_id else "",
+        str(status_message_id) if status_message_id else "",
+        dt_to_str(now_jst()),
+        user_id,
+        slot_no,
+    ))
+    conn.commit()
+    conn.close()
+
 def clear_slot(user_id: str, slot_no: int):
     ensure_profile(user_id)
     conn = db()
@@ -232,7 +258,7 @@ def clear_slot(user_id: str, slot_no: int):
     cur.execute("""
     UPDATE save_slots
     SET save_version=?, save_status='empty', current_character_id='', current_character_name='',
-        current_stage='', visual_name='', state_json='', updated_at=?
+        current_stage='', visual_name='', state_json='', updated_at=?, thread_id='', status_message_id=''
     WHERE user_id=? AND slot_no=?
     """, (SAVE_VERSION, now, user_id, slot_no))
     conn.commit()
@@ -713,6 +739,89 @@ async def full_reload():
     await send_log(build_load_log_text(c_ok, c_msg, e_ok, e_msg, i_ok, i_msg))
 
 # =========================
+# パネル / スレッド / メイン表示
+# =========================
+async def ensure_panel():
+    channel = bot.get_channel(PANEL_CHANNEL_ID)
+    if not channel:
+        return
+
+    found_main = False
+    found_util = False
+    async for msg in channel.history(limit=30):
+        if msg.author != bot.user:
+            continue
+        if msg.content == "MJSSモン操作パネル":
+            found_main = True
+        elif msg.content == "管理パネル":
+            found_util = True
+
+    if not found_main:
+        await channel.send("MJSSモン操作パネル", view=MainView())
+    if not found_util:
+        await channel.send("管理パネル", view=UtilityView())
+
+async def get_or_create_slot_thread(panel_channel: discord.TextChannel, user: discord.User, slot_no: int) -> discord.Thread:
+    slot = get_slot(str(user.id), slot_no)
+    thread_id = slot["thread_id"] or ""
+    if thread_id:
+        existing = bot.get_channel(int(thread_id))
+        if existing and isinstance(existing, discord.Thread):
+            return existing
+
+    thread = await panel_channel.create_thread(
+        name=f"{user.display_name}_セーブ{slot_no}",
+        type=discord.ChannelType.public_thread,
+        auto_archive_duration=10080
+    )
+    return thread
+
+async def get_or_create_status_message(thread: discord.Thread, user_id: str, slot_no: int) -> discord.Message:
+    slot = get_slot(user_id, slot_no)
+    message_id = slot["status_message_id"] or ""
+    if message_id:
+        try:
+            return await thread.fetch_message(int(message_id))
+        except Exception:
+            pass
+
+    msg = await thread.send("初期化中...")
+    set_slot_thread_info(user_id, slot_no, thread.id, msg.id)
+    return msg
+
+async def refresh_status_message(user_id: str, slot_no: int):
+    slot = get_slot(user_id, slot_no)
+    thread_id = slot["thread_id"] or ""
+    if not thread_id:
+        return
+
+    thread = bot.get_channel(int(thread_id))
+    if not thread or not isinstance(thread, discord.Thread):
+        return
+
+    state = load_state(slot)
+    if not state:
+        return
+
+    state = apply_time_passage(state)
+    state, evolved = check_and_apply_evolution(state)
+    if evolved:
+        unlock_dex(user_id, state["character_id"], state["character_name"])
+        unlock_visual(user_id, state["character_name"])
+    save_slot(user_id, slot_no, state)
+
+    msg = await get_or_create_status_message(thread, user_id, slot_no)
+    image_name = state_image_name(state)
+    image_url = image_map.get(image_name, "")
+    text = build_state_text(user_id, slot_no, state)
+    if image_url:
+        text += f"\n\n画像: {image_name}\n{image_url}"
+    else:
+        text += f"\n\n画像: {image_name}（未読込）"
+
+    await msg.edit(content=text, view=CareView(user_id, slot_no))
+
+# =========================
 # UI
 # =========================
 class SlotSelect(discord.ui.Select):
@@ -756,15 +865,18 @@ class SlotSelect(discord.ui.Select):
                     + "\n".join(f"・{p}" for p in problems)
                 )
                 state = repaired
-            state = apply_time_passage(state)
-            state, evolved = check_and_apply_evolution(state)
-            if evolved:
-                unlock_dex(self.user_id, state["character_id"], state["character_name"])
-                unlock_visual(self.user_id, state["character_name"])
+
+            panel_channel = interaction.channel
+            if not isinstance(panel_channel, discord.TextChannel):
+                await interaction.response.send_message("パネルチャンネルから選びなよ。", ephemeral=True)
+                return
+            thread = await get_or_create_slot_thread(panel_channel, interaction.user, slot_no)
+            msg = await get_or_create_status_message(thread, self.user_id, slot_no)
+            set_slot_thread_info(self.user_id, slot_no, thread.id, msg.id)
             save_slot(self.user_id, slot_no, state)
+            await refresh_status_message(self.user_id, slot_no)
             await interaction.response.send_message(
-                build_state_text(self.user_id, slot_no, state),
-                view=CareView(self.user_id, slot_no),
+                f"{thread.mention} で続きから遊びなよ。",
                 ephemeral=True,
             )
         elif self.mode == "delete":
@@ -803,9 +915,18 @@ class ConfirmStartView(discord.ui.View):
         state = make_state("egg")
         state["last_action_text"] = "たまごを受け取った"
         save_slot(self.user_id, self.slot_no, state, status="normal")
+
+        panel_channel = interaction.channel
+        if not isinstance(panel_channel, discord.TextChannel):
+            await interaction.response.send_message("パネルチャンネルからやって。", ephemeral=True)
+            return
+        thread = await get_or_create_slot_thread(panel_channel, interaction.user, self.slot_no)
+        msg = await get_or_create_status_message(thread, self.user_id, self.slot_no)
+        set_slot_thread_info(self.user_id, self.slot_no, thread.id, msg.id)
+        await refresh_status_message(self.user_id, self.slot_no)
+
         await interaction.response.send_message(
-            build_state_text(self.user_id, self.slot_no, state),
-            view=CareView(self.user_id, self.slot_no),
+            f"{thread.mention} を作ったよ。そこで育てなよ。",
             ephemeral=True,
         )
 
@@ -849,6 +970,7 @@ class SkinSelect(discord.ui.Select):
         state["last_action_text"] = f"{visual}の見た目に変えた"
         update_ui_state(state)
         save_slot(self.user_id, self.slot_no, state)
+        await refresh_status_message(self.user_id, self.slot_no)
         await interaction.response.send_message("見た目変えたよ。満足？", ephemeral=True)
 
 class SkinView(discord.ui.View):
@@ -858,7 +980,7 @@ class SkinView(discord.ui.View):
 
 class CareView(discord.ui.View):
     def __init__(self, user_id: str, slot_no: int):
-        super().__init__(timeout=300)
+        super().__init__(timeout=None)
         self.user_id = user_id
         self.slot_no = slot_no
 
@@ -875,28 +997,42 @@ class CareView(discord.ui.View):
         save_slot(self.user_id, self.slot_no, state)
         return state
 
+    async def _ensure_thread(self, interaction: discord.Interaction) -> bool:
+        if not isinstance(interaction.channel, discord.Thread):
+            await interaction.response.send_message("専用スレッドで押して。", ephemeral=True)
+            return False
+        return True
+
     @discord.ui.button(label="ごはん", style=discord.ButtonStyle.primary)
     async def food(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await self._ensure_thread(interaction):
+            return
         state = self._load()
         state["condition"] = min(5, state["condition"] + 2)
         state["stress"] = max(0, state["stress"] - 1)
         state["ui_state"] = "ごはん"
         state["last_action_text"] = "ごはんをあげた"
         save_slot(self.user_id, self.slot_no, state)
-        await interaction.response.send_message(build_state_text(self.user_id, self.slot_no, state), ephemeral=True)
+        await refresh_status_message(self.user_id, self.slot_no)
+        await interaction.response.defer()
 
     @discord.ui.button(label="あそぶ", style=discord.ButtonStyle.primary)
     async def play(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await self._ensure_thread(interaction):
+            return
         state = self._load()
         state["stress"] = max(0, state["stress"] - 1)
         state["influence"] += 2
         state["ui_state"] = "よろこび"
         state["last_action_text"] = "あそんだ"
         save_slot(self.user_id, self.slot_no, state)
-        await interaction.response.send_message(build_state_text(self.user_id, self.slot_no, state), ephemeral=True)
+        await refresh_status_message(self.user_id, self.slot_no)
+        await interaction.response.defer()
 
     @discord.ui.button(label="トレーニング", style=discord.ButtonStyle.primary)
     async def train(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await self._ensure_thread(interaction):
+            return
         state = self._load()
         state["training_count"] += 1
         state["influence"] += 3
@@ -906,24 +1042,32 @@ class CareView(discord.ui.View):
         state["response"] += 1
         state["last_action_text"] = "トレーニングした"
         save_slot(self.user_id, self.slot_no, state)
-        await interaction.response.send_message("ちゃんと鍛えなよ、雑魚♡\n" + build_state_text(self.user_id, self.slot_no, state), ephemeral=True)
+        await refresh_status_message(self.user_id, self.slot_no)
+        await interaction.response.defer()
 
     @discord.ui.button(label="休ませる", style=discord.ButtonStyle.secondary)
     async def sleep(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await self._ensure_thread(interaction):
+            return
         state = self._load()
         state["is_sleeping"] = not state.get("is_sleeping", False)
         state["last_action_text"] = "休ませた" if state["is_sleeping"] else "起こした"
         update_ui_state(state)
         save_slot(self.user_id, self.slot_no, state)
-        await interaction.response.send_message(build_state_text(self.user_id, self.slot_no, state), ephemeral=True)
+        await refresh_status_message(self.user_id, self.slot_no)
+        await interaction.response.defer()
 
     @discord.ui.button(label="様子を見る", style=discord.ButtonStyle.secondary)
     async def look(self, interaction: discord.Interaction, button: discord.ui.Button):
-        state = self._load()
-        await interaction.response.send_message(build_state_text(self.user_id, self.slot_no, state), ephemeral=True)
+        if not await self._ensure_thread(interaction):
+            return
+        await refresh_status_message(self.user_id, self.slot_no)
+        await interaction.response.defer()
 
     @discord.ui.button(label="その他", style=discord.ButtonStyle.secondary)
     async def menu(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await self._ensure_thread(interaction):
+            return
         await interaction.response.send_message(
             "どれ見るの？",
             view=SubMenuView(self.user_id, self.slot_no),
@@ -1018,6 +1162,7 @@ class ReincView(discord.ui.View):
         slot = get_slot(self.user_id, self.slot_no)
         state = load_state(slot)
         apply_reincarnation(self.user_id, self.slot_no, state)
+        await refresh_status_message(self.user_id, self.slot_no)
         await interaction.response.send_message("手紙を残して卵にもどったよ。", ephemeral=True)
 
 class GachaView(discord.ui.View):
@@ -1049,6 +1194,7 @@ class GachaView(discord.ui.View):
         else:
             update_profile(self.user_id, coins=profile["coins"] - 100)
 
+        await refresh_status_message(self.user_id, self.slot_no)
         await interaction.response.send_message(f"ガチャ結果: {stat} +5", ephemeral=True)
 
 class TagView(discord.ui.View):
@@ -1117,6 +1263,7 @@ class PvpView(discord.ui.View):
 
         my_state["last_action_text"] = result
         save_slot(self.user_id, self.slot_no, my_state)
+        await refresh_status_message(self.user_id, self.slot_no)
         await interaction.response.send_message(result, ephemeral=True)
 
 class MainView(discord.ui.View):
@@ -1169,9 +1316,8 @@ async def setup_panel(ctx):
     if PANEL_CHANNEL_ID and ctx.channel.id != PANEL_CHANNEL_ID:
         await ctx.send("パネル用チャンネルでやって。")
         return
-    await ctx.send("MJSSモン操作パネル", view=MainView())
-    await ctx.send("管理パネル", view=UtilityView())
-    await ctx.send("パネル設置完了。")
+    await ensure_panel()
+    await ctx.send("パネル確認したよ。")
     await full_reload()
 
 @bot.command()
@@ -1185,7 +1331,17 @@ async def reload_master(ctx):
 @bot.event
 async def on_ready():
     init_db()
+    bot.add_view(MainView())
+    bot.add_view(UtilityView())
     await full_reload()
+    await ensure_panel()
+    conn = db()
+    cur = conn.cursor()
+    cur.execute("SELECT user_id, slot_no, state_json FROM save_slots WHERE state_json != ''")
+    rows = cur.fetchall()
+    conn.close()
+    for row in rows:
+        bot.add_view(CareView(row["user_id"], row["slot_no"]))
     print(f"Logged in as {bot.user} / JST: {fmt_dt(now_jst())}")
 
 if __name__ == "__main__":
