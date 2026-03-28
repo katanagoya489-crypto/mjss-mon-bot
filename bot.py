@@ -479,12 +479,24 @@ def is_sleep_time(stage: str, now: datetime) -> bool:
 def update_ui_state(state: dict):
     if state.get("life", 1) <= 0:
         state["ui_state"] = "体調不良"
-    elif state.get("is_sleeping", False) or is_sleep_time(state["stage"], now_jst()):
-        state["ui_state"] = "ねむい" if not state.get("is_sleeping") else "通常"
-    elif state.get("stress", 0) >= 5 or state.get("condition", 5) <= 1:
+        return
+
+    if state.get("is_sleeping", False):
+        state["ui_state"] = "ねむい"
+        return
+
+    if is_sleep_time(state["stage"], now_jst()):
+        state["ui_state"] = "ねむい"
+        return
+
+    if state.get("stress", 0) >= 5 or state.get("condition", 5) <= 1:
         state["ui_state"] = "体調不良"
-    else:
-        state["ui_state"] = "通常"
+        return
+
+    if state.get("ui_state") in ("ごはん", "よろこび"):
+        return
+
+    state["ui_state"] = "通常"
 
 
 def state_image_name(state: dict) -> str:
@@ -691,6 +703,118 @@ def validate_state(state: dict) -> Tuple[str, List[str], dict]:
 # =========================
 # 表示
 # =========================
+
+def _clamp(value: int, min_v: int, max_v: int) -> int:
+    return max(min_v, min(value, max_v))
+
+
+def care_bar(value: int, max_value: int = 5, full: str = "■", empty: str = "□") -> str:
+    value = _clamp(int(value), 0, max_value)
+    return full * value + empty * (max_value - value)
+
+
+def stat_bar(value: int, scale: int = 5, cap: int = 999) -> str:
+    if value <= 0:
+        filled = 0
+    else:
+        filled = max(1, round((_clamp(int(value), 0, cap) / cap) * scale))
+    return care_bar(filled, scale, "▰", "▱")
+
+
+def life_hearts(value: int) -> str:
+    value = _clamp(int(value), 0, 3)
+    return "♥" * value + "♡" * (3 - value)
+
+
+def sleep_status_text(state: dict) -> str:
+    if state.get("is_sleeping", False):
+        return "睡眠中"
+    if is_sleep_time(state["stage"], now_jst()):
+        return "ねむい"
+    return "起きてる"
+
+
+def build_status_embed(user_id: str, slot_no: int, state: dict) -> discord.Embed:
+    profile = get_profile(user_id)
+    image_name = state_image_name(state)
+    image_url = image_map.get(image_name, "")
+
+    embed = discord.Embed(
+        title=f"【セーブ{slot_no}】{state['character_name']}",
+        description=(
+            f"段階: **{state['stage']}**
+"
+            f"表示: **{state['visual_name']}**
+"
+            f"状態: **{state['ui_state']}**
+"
+            f"最終更新(JST): {fmt_dt(parse_dt(state['last_update']))}"
+        ),
+        color=discord.Color.magenta(),
+    )
+
+    embed.add_field(
+        name="お世話",
+        value=(
+            f"❤️ ライフ {life_hearts(state['life'])}
+"
+            f"🍖 コンディション {care_bar(state['condition'], 5)}
+"
+            f"🎤 ノリ {care_bar(_clamp(state['influence'], 0, 5), 5)}
+"
+            f"🧠 しつけ {care_bar(_clamp(state['professionalism'], 0, 5), 5)}
+"
+            f"💢 ストレス {care_bar(_clamp(state['stress'], 0, 5), 5)}
+"
+            f"😴 ねむけ {sleep_status_text(state)}
+"
+            f"⚠️ お世話ミス {state['care_miss']}回"
+        ),
+        inline=False,
+    )
+
+    embed.add_field(
+        name="育成メモ",
+        value=(
+            f"✨ 努力回数 {state['training_count']}回
+"
+            f"🛌 睡眠品質 {state['sleep_quality']}
+"
+            f"📝 前回: {state.get('last_action_text', '-')}"
+        ),
+        inline=False,
+    )
+
+    embed.add_field(
+        name="バトル能力",
+        value=(
+            f"体力 {state['stamina']} {stat_bar(state['stamina'])}
+"
+            f"表現 {state['expression']} {stat_bar(state['expression'])}
+"
+            f"歌唱 {state['performance']} {stat_bar(state['performance'])}
+"
+            f"安定 {state['stability']} {stat_bar(state['stability'])}
+"
+            f"反応 {state['response']} {stat_bar(state['response'])}
+"
+            f"知性 {state['intelligence']} {stat_bar(state['intelligence'])}"
+        ),
+        inline=False,
+    )
+
+    embed.set_footer(
+        text=f"コイン: {profile['coins']} / ガチャ券: {profile['gacha_tickets']} / 転生回数: {profile['reincarnations']}"
+    )
+
+    if image_url:
+        embed.set_image(url=image_url)
+    else:
+        embed.add_field(name="画像", value=f"{image_name}（未読込）", inline=False)
+
+    return embed
+
+
 def get_slot_summary(slot_row: sqlite3.Row) -> str:
     status = slot_row["save_status"]
     if status == "empty":
