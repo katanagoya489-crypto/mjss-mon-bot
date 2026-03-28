@@ -365,15 +365,55 @@ async def load_evolution_master(channel: discord.TextChannel):
     evolution_data = parse_master_blocks(text, "===EVOLUTION===")
     return True, f"{len(evolution_data)}件"
 
-async def load_images(channel: discord.TextChannel):
+
+def _extract_declared_name_from_message(message: discord.Message) -> str:
+    content = (message.content or "").strip()
+    if not content:
+        return ""
+    for line in content.splitlines():
+        line = line.strip()
+        if line.lower().startswith("name:"):
+            return line.split(":", 1)[1].strip()
+    return ""
+
+def _register_image_alias(name: str, url: str):
+    name = (name or "").strip()
+    if not name:
+        return
+    image_map[name] = url
+
+    # ありがちな表記ゆれも少し吸う
+    compact = name.replace(" ", "").replace("　", "")
+    image_map[compact] = url
+
+    # GIFやスマホ投稿で name: がある場合に、基本名も吸う
+    if compact.startswith("name:"):
+        image_map[compact.split(":", 1)[1].strip()] = url
+
+async def load_images_from_channel(channel: discord.TextChannel):
+    count = 0
+    async for message in channel.history(limit=1000):
+        declared_name = _extract_declared_name_from_message(message)
+        for att in message.attachments:
+            base = att.filename.rsplit(".", 1)[0].strip()
+            _register_image_alias(base, att.url)
+            if declared_name:
+                _register_image_alias(declared_name, att.url)
+            count += 1
+    return count
+
+async def load_images(image_channel: Optional[discord.TextChannel], character_channel: Optional[discord.TextChannel] = None):
     global image_map
     image_map = {}
     count = 0
-    async for message in channel.history(limit=500):
-        for att in message.attachments:
-            base = att.filename.rsplit(".", 1)[0]
-            image_map[base] = att.url
-            count += 1
+
+    if image_channel:
+        count += await load_images_from_channel(image_channel)
+
+    # たまご・手紙・キャラ画像がキャラクター管理チャンネル側にあるケースも吸う
+    if character_channel and (not image_channel or character_channel.id != image_channel.id):
+        count += await load_images_from_channel(character_channel)
+
     return True, f"{count}件"
 
 
@@ -512,6 +552,8 @@ def state_image_name(state: dict) -> str:
     candidates = [
         f"{visual_name}{current}" if visual_name else "",
         f"{character_name}{current}" if character_name else "",
+        visual_name if visual_name else "",
+        character_name if character_name else "",
         f"{visual_name}通常" if visual_name else "",
         f"{character_name}通常" if character_name else "",
     ]
@@ -892,12 +934,15 @@ def build_load_log_text(c_ok, c_msg, e_ok, e_msg, i_ok, i_msg) -> str:
 async def full_reload():
     char_channel = bot.get_channel(CHARACTER_CHANNEL_ID)
     image_channel = bot.get_channel(IMAGE_CHANNEL_ID)
-    if not char_channel or not image_channel:
-        await send_log("【読み込みチェック】\n\nチャンネルIDが見つからない。環境変数を確認して。")
+
+    if not char_channel:
+        await send_log("【読み込みチェック】\n\nCHARACTER_CHANNEL_ID のチャンネルが見つからない。")
         return
+
     c_ok, c_msg = await load_characters_master(char_channel)
     e_ok, e_msg = await load_evolution_master(char_channel)
-    i_ok, i_msg = await load_images(image_channel)
+    i_ok, i_msg = await load_images(image_channel, char_channel)
+
     await send_log(build_load_log_text(c_ok, c_msg, e_ok, e_msg, i_ok, i_msg))
 
 # =========================
