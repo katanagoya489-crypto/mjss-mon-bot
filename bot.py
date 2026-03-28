@@ -376,17 +376,25 @@ async def load_images(channel: discord.TextChannel):
             count += 1
     return True, f"{count}件"
 
-def expected_image_names() -> List[str]:
-    names = set()
-    names.add("たまご")
-    names.add("手紙")
-    for row in characters_data.values():
-        stage = row.get("stage", "")
-        name = row.get("name", "")
-        if not name or stage == "egg":
+
+def _uploaded_character_bases() -> List[str]:
+    bases = set()
+    for key in image_map.keys():
+        if key in ("たまご", "手紙"):
             continue
         for state in REQUIRED_STATES:
-            names.add(f"{name}{state}")
+            if key.endswith(state):
+                bases.add(key[: -len(state)])
+                break
+    return sorted(bases)
+
+def expected_image_names() -> List[str]:
+    # いま実際に画像があるキャラだけをチェック対象にする
+    # これで MJ / SS 画像をまだ入れてなくても不足扱いにしない
+    names = {"たまご", "手紙"}
+    for base in _uploaded_character_bases():
+        for state in REQUIRED_STATES:
+            names.add(f"{base}{state}")
     return sorted(names)
 
 def check_missing_images() -> List[str]:
@@ -478,12 +486,31 @@ def update_ui_state(state: dict):
     else:
         state["ui_state"] = "通常"
 
+
 def state_image_name(state: dict) -> str:
-    name = state.get("visual_name") or state.get("character_name")
-    current = state.get("ui_state", "通常")
     if state.get("stage") == "egg":
         return "たまご"
-    return f"{name}{current}"
+
+    visual_name = state.get("visual_name") or ""
+    character_name = state.get("character_name") or ""
+    current = state.get("ui_state", "通常")
+
+    candidates = [
+        f"{visual_name}{current}" if visual_name else "",
+        f"{character_name}{current}" if character_name else "",
+        f"{visual_name}通常" if visual_name else "",
+        f"{character_name}通常" if character_name else "",
+    ]
+
+    # 幼年期画像がまだ無い時は、たまごにフォールバック
+    if state.get("stage") in ("mj", "ss", "pon"):
+        candidates.append("たまご")
+
+    for name in candidates:
+        if name and name in image_map:
+            return name
+
+    return candidates[0] if candidates and candidates[0] else "たまご"
 
 def apply_time_passage(state: dict) -> dict:
     now = now_jst()
@@ -741,25 +768,25 @@ async def full_reload():
 # =========================
 # パネル / スレッド / メイン表示
 # =========================
+
 async def ensure_panel():
     channel = bot.get_channel(PANEL_CHANNEL_ID)
     if not channel:
         return
 
-    found_main = False
-    found_util = False
-    async for msg in channel.history(limit=30):
+    # persistent view を使わず、起動時に古いパネルを消して新しいパネルを置き直す
+    # これで custom_id 問題を避けつつ、毎回 setup_panel を打たなくてよくする
+    async for msg in channel.history(limit=50):
         if msg.author != bot.user:
             continue
-        if msg.content == "MJSSモン操作パネル":
-            found_main = True
-        elif msg.content == "管理パネル":
-            found_util = True
+        if msg.content in ("MJSSモン操作パネル", "管理パネル", "パネル設置完了。"):
+            try:
+                await msg.delete()
+            except Exception:
+                pass
 
-    if not found_main:
-        await channel.send("MJSSモン操作パネル", view=MainView())
-    if not found_util:
-        await channel.send("管理パネル", view=UtilityView())
+    await channel.send("MJSSモン操作パネル", view=MainView())
+    await channel.send("管理パネル", view=UtilityView())
 
 async def get_or_create_slot_thread(panel_channel: discord.TextChannel, user: discord.User, slot_no: int) -> discord.Thread:
     slot = get_slot(str(user.id), slot_no)
@@ -1328,20 +1355,12 @@ async def reload_master(ctx):
 # =========================
 # 起動
 # =========================
+
 @bot.event
 async def on_ready():
     init_db()
-    bot.add_view(MainView())
-    bot.add_view(UtilityView())
     await full_reload()
     await ensure_panel()
-    conn = db()
-    cur = conn.cursor()
-    cur.execute("SELECT user_id, slot_no, state_json FROM save_slots WHERE state_json != ''")
-    rows = cur.fetchall()
-    conn.close()
-    for row in rows:
-        bot.add_view(CareView(row["user_id"], row["slot_no"]))
     print(f"Logged in as {bot.user} / JST: {fmt_dt(now_jst())}")
 
 if __name__ == "__main__":
