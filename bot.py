@@ -3,6 +3,7 @@ import os
 import json
 import re
 import sqlite3
+import random
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Tuple
@@ -308,6 +309,43 @@ characters_data: Dict[str, dict] = {}
 evolution_data: List[dict] = []
 image_map: Dict[str, str] = {}
 
+MUSIC_QUIZ_QUESTIONS: List[dict] = [
+    {"category": "J-POP", "question": "宇多田ヒカルの曲はどれ？", "choices": ["First Love", "TSUNAMI", "天体観測"], "answer": "First Love"},
+    {"category": "J-POP", "question": "米津玄師の曲はどれ？", "choices": ["Lemon", "HANABI", "チェリー"], "answer": "Lemon"},
+    {"category": "J-POP", "question": "Official髭男dismの曲はどれ？", "choices": ["Pretender", "マリーゴールド", "怪獣の花唄"], "answer": "Pretender"},
+    {"category": "J-POP", "question": "YOASOBIの曲はどれ？", "choices": ["アイドル", "シンデレラボーイ", "キセキ"], "answer": "アイドル"},
+    {"category": "J-POP", "question": "Aimerの曲はどれ？", "choices": ["残響散歌", "白日", "小さな恋のうた"], "answer": "残響散歌"},
+    {"category": "J-POP", "question": "あいみょんの曲はどれ？", "choices": ["マリーゴールド", "Subtitle", "愛唄"], "answer": "マリーゴールド"},
+    {"category": "J-POP", "question": "Vaundyの曲はどれ？", "choices": ["怪獣の花唄", "水平線", "夜空ノムコウ"], "answer": "怪獣の花唄"},
+    {"category": "J-POP", "question": "back numberの曲はどれ？", "choices": ["水平線", "夜に駆ける", "花束"], "answer": "水平線"},
+    {"category": "J-POP", "question": "Mrs. GREEN APPLEの曲はどれ？", "choices": ["青と夏", "ドライフラワー", "チェリー"], "answer": "青と夏"},
+    {"category": "J-POP", "question": "King Gnuの曲はどれ？", "choices": ["白日", "香水", "イエスタデイ"], "answer": "白日"},
+    {"category": "邦楽", "question": "BUMP OF CHICKENの曲はどれ？", "choices": ["天体観測", "未来予想図II", "イージュー★ライダー"], "answer": "天体観測"},
+    {"category": "邦楽", "question": "スピッツの曲はどれ？", "choices": ["チェリー", "ultra soul", "真夏の果実"], "answer": "チェリー"},
+    {"category": "邦楽", "question": "サザンオールスターズの曲はどれ？", "choices": ["真夏の果実", "3月9日", "RPG"], "answer": "真夏の果実"},
+    {"category": "邦楽", "question": "レミオロメンの曲はどれ？", "choices": ["3月9日", "栄光の架橋", "シーソーゲーム"], "answer": "3月9日"},
+    {"category": "邦楽", "question": "ゆずの曲はどれ？", "choices": ["栄光の架橋", "粉雪", "One more time, One more chance"], "answer": "栄光の架橋"},
+    {"category": "邦楽", "question": "MONGOL800の曲はどれ？", "choices": ["小さな恋のうた", "島人ぬ宝", "LOVEマシーン"], "answer": "小さな恋のうた"},
+    {"category": "邦楽", "question": "Mr.Childrenの曲はどれ？", "choices": ["シーソーゲーム", "浪漫飛行", "負けないで"], "answer": "シーソーゲーム"},
+    {"category": "邦楽", "question": "BEGINの曲はどれ？", "choices": ["島人ぬ宝", "紅", "前前前世"], "answer": "島人ぬ宝"},
+    {"category": "邦楽", "question": "B'zの曲はどれ？", "choices": ["ultra soul", "世界が終るまでは…", "フレンズ"], "answer": "ultra soul"},
+    {"category": "邦楽", "question": "山崎まさよしの曲はどれ？", "choices": ["One more time, One more chance", "Tomorrow never knows", "さくらんぼ"], "answer": "One more time, One more chance"},
+    {"category": "洋楽", "question": "Queenの代表曲はどれ？", "choices": ["Bohemian Rhapsody", "Yesterday", "Viva La Vida"], "answer": "Bohemian Rhapsody"},
+    {"category": "洋楽", "question": "The Beatlesの代表曲はどれ？", "choices": ["Yesterday", "Smells Like Teen Spirit", "Shake It Off"], "answer": "Yesterday"},
+    {"category": "洋楽", "question": "Nirvanaの代表曲はどれ？", "choices": ["Smells Like Teen Spirit", "Wonderwall", "Shape of You"], "answer": "Smells Like Teen Spirit"},
+    {"category": "洋楽", "question": "Oasisの代表曲はどれ？", "choices": ["Wonderwall", "Bad Romance", "Rolling in the Deep"], "answer": "Wonderwall"},
+    {"category": "洋楽", "question": "Adeleの代表曲はどれ？", "choices": ["Rolling in the Deep", "Take on Me", "Beat It"], "answer": "Rolling in the Deep"},
+    {"category": "洋楽", "question": "Lady Gagaの代表曲はどれ？", "choices": ["Bad Romance", "Call Me Maybe", "Happy"], "answer": "Bad Romance"},
+    {"category": "洋楽", "question": "Ed Sheeranの代表曲はどれ？", "choices": ["Shape of You", "Toxic", "Poker Face"], "answer": "Shape of You"},
+    {"category": "洋楽", "question": "Michael Jacksonの代表曲はどれ？", "choices": ["Beat It", "Hello", "Creep"], "answer": "Beat It"},
+    {"category": "洋楽", "question": "a-haの代表曲はどれ？", "choices": ["Take on Me", "Hotel California", "Let It Be"], "answer": "Take on Me"},
+    {"category": "洋楽", "question": "Taylor Swiftの代表曲はどれ？", "choices": ["Shake It Off", "Imagine", "Livin' on a Prayer"], "answer": "Shake It Off"},
+]
+TRAINING_MAX_STOCK = 3
+TRAINING_RECOVERY_MINUTES = 30
+CALL_NOTICE_MINUTES = 15
+
+
 def parse_master_blocks(text: str, marker: str) -> List[dict]:
     chunks = [x.strip() for x in text.split(marker) if x.strip()]
     rows = []
@@ -511,6 +549,11 @@ def make_state(character_id: str) -> dict:
         "created_at": dt_to_str(t),
         "last_action_text": "誕生した",
         "last_reincarnation_points": 0,
+        "training_stock_max": TRAINING_MAX_STOCK,
+        "training_stock": TRAINING_MAX_STOCK,
+        "last_training_recovery": dt_to_str(t),
+        "quiz_streak": 0,
+        "last_call_notice": "",
     }
 
 def load_state(slot_row: sqlite3.Row) -> Optional[dict]:
@@ -597,6 +640,8 @@ def state_image_name(state: dict) -> str:
     return "たまご" if "たまご" in image_map else (candidates[0] if candidates and candidates[0] else "")
 
 def apply_time_passage(state: dict) -> dict:
+    ensure_state_runtime_defaults(state)
+    recover_training_stock(state)
     now = now_jst()
     last = parse_dt(state["last_update"])
     elapsed = int((now - last).total_seconds() // 60)
@@ -816,6 +861,69 @@ def is_non_care_state(state: dict) -> bool:
     return is_egg_state(state) or is_letter_state(state)
 
 
+def ensure_state_runtime_defaults(state: dict) -> dict:
+    now_s = dt_to_str(now_jst())
+    state.setdefault("training_stock_max", TRAINING_MAX_STOCK)
+    state.setdefault("training_stock", TRAINING_MAX_STOCK)
+    state.setdefault("last_training_recovery", state.get("last_update", now_s))
+    state.setdefault("quiz_streak", 0)
+    state.setdefault("last_call_notice", "")
+    return state
+
+def recover_training_stock(state: dict) -> dict:
+    ensure_state_runtime_defaults(state)
+    current_stock = int(state.get("training_stock", TRAINING_MAX_STOCK))
+    max_stock = int(state.get("training_stock_max", TRAINING_MAX_STOCK))
+    if current_stock >= max_stock:
+        state["last_training_recovery"] = dt_to_str(now_jst())
+        return state
+    base_time_raw = state.get("last_training_recovery") or state.get("last_update") or dt_to_str(now_jst())
+    base_time = parse_dt(base_time_raw)
+    now = now_jst()
+    recovered = int((now - base_time).total_seconds() // (TRAINING_RECOVERY_MINUTES * 60))
+    if recovered > 0:
+        current_stock = min(max_stock, current_stock + recovered)
+        base_time = base_time + timedelta(minutes=TRAINING_RECOVERY_MINUTES * recovered)
+        state["training_stock"] = current_stock
+        state["last_training_recovery"] = dt_to_str(base_time)
+    return state
+
+def consume_training_stock(state: dict) -> bool:
+    recover_training_stock(state)
+    stock = int(state.get("training_stock", TRAINING_MAX_STOCK))
+    if stock <= 0:
+        return False
+    state["training_stock"] = stock - 1
+    return True
+
+def training_stock_bar(state: dict) -> str:
+    ensure_state_runtime_defaults(state)
+    return care_bar(int(state.get("training_stock", TRAINING_MAX_STOCK)), int(state.get("training_stock_max", TRAINING_MAX_STOCK)), "◆", "◇")
+
+def get_call_reasons(state: dict) -> List[str]:
+    if is_non_care_state(state):
+        return []
+    reasons = []
+    if state.get("condition", 5) <= 1:
+        reasons.append("おなか/体力が限界")
+    if state.get("stress", 0) >= 4:
+        reasons.append("ストレス高め")
+    if is_sleep_time(state["stage"], now_jst()) and not state.get("is_sleeping", False):
+        reasons.append("眠そう")
+    if int(state.get("training_stock", TRAINING_MAX_STOCK)) >= TRAINING_MAX_STOCK:
+        reasons.append("トレーニングしたそう")
+    return reasons
+
+def pick_music_quiz_question() -> dict:
+    q = random.choice(MUSIC_QUIZ_QUESTIONS)
+    return {
+        "category": q["category"],
+        "question": q["question"],
+        "choices": list(q["choices"]),
+        "answer": q["answer"],
+    }
+
+
 def build_status_embed(user_id: str, slot_no: int, state: dict) -> discord.Embed:
     profile = get_profile(user_id)
     image_name = state_image_name(state)
@@ -859,17 +967,23 @@ def build_status_embed(user_id: str, slot_no: int, state: dict) -> discord.Embed
             f"⚠️ お世話ミス {state['care_miss']}回"
         )
 
+    call_reasons = get_call_reasons(state)
+
     embed.add_field(name="お世話", value=care_value, inline=False)
 
     embed.add_field(
         name="育成メモ",
         value=(
-            f"✨ 努力回数 {state['training_count']}回\n"
+            f"🎵 トレーニング回数 {state['training_count']}回\n"
+            f"🎫 トレーニングストック {training_stock_bar(state)}\n"
             f"🛌 睡眠品質 {state['sleep_quality']}\n"
+            f"🔥 連続正解 {state.get('quiz_streak', 0)}\n"
             f"📝 前回: {state.get('last_action_text', '-')}"
         ),
         inline=False,
     )
+    if call_reasons:
+        embed.add_field(name="呼び出し", value=" / ".join(call_reasons), inline=False)
 
     embed.add_field(
         name="バトル能力",
@@ -1058,6 +1172,24 @@ async def refresh_status_message(user_id: str, slot_no: int):
     embed = build_status_embed(user_id, slot_no, state)
     await msg.edit(content=None, embed=embed, view=CareView(user_id, slot_no))
 
+    reasons = get_call_reasons(state)
+    if reasons:
+        last_notice_raw = state.get("last_call_notice", "")
+        should_ping = True
+        if last_notice_raw:
+            try:
+                last_notice = parse_dt(last_notice_raw)
+                should_ping = (now_jst() - last_notice).total_seconds() >= CALL_NOTICE_MINUTES * 60
+            except Exception:
+                should_ping = True
+        if should_ping:
+            try:
+                await thread.send(f"<@{user_id}> 呼び出し: " + " / ".join(reasons))
+                state["last_call_notice"] = dt_to_str(now_jst())
+                save_slot(user_id, slot_no, state)
+            except Exception:
+                pass
+
 # =========================
 # UI
 # =========================
@@ -1215,6 +1347,78 @@ class SkinView(discord.ui.View):
         super().__init__(timeout=180)
         self.add_item(SkinSelect(user_id, slot_no))
 
+
+class MusicQuizChoiceButton(discord.ui.Button):
+    def __init__(self, label_text: str):
+        super().__init__(label=label_text, style=discord.ButtonStyle.primary)
+        self.choice_text = label_text
+
+    async def callback(self, interaction: discord.Interaction):
+        view = self.view
+        if not isinstance(view, MusicQuizView):
+            await interaction.response.send_message("クイズ表示がおかしい。", ephemeral=True)
+            return
+        await view.handle_answer(interaction, self.choice_text)
+
+class MusicQuizView(discord.ui.View):
+    def __init__(self, user_id: str, slot_no: int, question: dict):
+        super().__init__(timeout=120)
+        self.user_id = user_id
+        self.slot_no = slot_no
+        self.question = question
+        self.answered = False
+        for choice in question["choices"]:
+            self.add_item(MusicQuizChoiceButton(choice))
+
+    async def handle_answer(self, interaction: discord.Interaction, choice_text: str):
+        if self.answered:
+            await interaction.response.send_message("もう答えたよ。", ephemeral=True)
+            return
+        self.answered = True
+        for item in self.children:
+            item.disabled = True
+
+        slot = get_slot(self.user_id, self.slot_no)
+        state = load_state(slot)
+        state = apply_time_passage(state)
+        if is_non_care_state(state):
+            await interaction.response.edit_message(content="今はトレーニングできない。", view=self)
+            return
+
+        correct = choice_text == self.question["answer"]
+        if correct:
+            state["performance"] += 3
+            state["expression"] += 3
+            state["influence"] += 2
+            state["professionalism"] = min(5, state["professionalism"] + 1)
+            state["quiz_streak"] = int(state.get("quiz_streak", 0)) + 1
+            if state["quiz_streak"] >= 3:
+                state["response"] += 2
+                bonus_text = " / 3連続ボーナスで反応 +2"
+            else:
+                bonus_text = ""
+            result = f"正解。表現+3 / 歌唱+3 / ノリ+2 / しつけ+1{bonus_text}"
+        else:
+            state["expression"] += 1
+            state["performance"] += 1
+            state["quiz_streak"] = 0
+            result = f"はずれ。でも表現+1 / 歌唱+1"
+
+        state["training_count"] += 1
+        state["stress"] = min(9, state["stress"] + 1)
+        state["condition"] = max(0, state["condition"] - 1)
+        state["last_action_text"] = f"音楽クイズ: {'正解' if correct else '不正解'}"
+        update_ui_state(state)
+        save_slot(self.user_id, self.slot_no, state)
+        await refresh_status_message(self.user_id, self.slot_no)
+
+        header = (
+            f"【{self.question['category']}】{self.question['question']}\n"
+            f"答え: {self.question['answer']}\n"
+            f"{result}"
+        )
+        await interaction.response.edit_message(content=header, view=self)
+
 class CareView(discord.ui.View):
     def __init__(self, user_id: str, slot_no: int):
         super().__init__(timeout=None)
@@ -1280,16 +1484,15 @@ class CareView(discord.ui.View):
         if is_non_care_state(state):
             await interaction.response.send_message("たまごと手紙はトレーニングできないよ。", ephemeral=True)
             return
-        state["training_count"] += 1
-        state["influence"] += 3
-        state["stress"] = min(9, state["stress"] + 1)
-        state["condition"] = max(0, state["condition"] - 1)
-        state["performance"] += 2
-        state["response"] += 1
-        state["last_action_text"] = "トレーニングした"
+        if not consume_training_stock(state):
+            await interaction.response.send_message("トレーニングストックがない。少し待つと回復するよ。", ephemeral=True)
+            return
+        question = pick_music_quiz_question()
+        state["last_action_text"] = f"音楽クイズに挑戦中（{question['category']}）"
         save_slot(self.user_id, self.slot_no, state)
         await refresh_status_message(self.user_id, self.slot_no)
-        await interaction.response.defer()
+        prompt = f"【{question['category']}】\n{question['question']}\n3択で答えて。"
+        await interaction.response.send_message(prompt, view=MusicQuizView(self.user_id, self.slot_no, question), ephemeral=True)
 
     @discord.ui.button(label="休ませる", style=discord.ButtonStyle.secondary)
     async def sleep(self, interaction: discord.Interaction, button: discord.ui.Button):
