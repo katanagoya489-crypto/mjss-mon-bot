@@ -52,6 +52,10 @@ LOG_CHANNEL_ID = int(os.getenv("LOG_CHANNEL_ID", "0"))
 SAVE_VERSION = 3
 MAX_SLOTS = 5
 REQUIRED_STATES = ["通常", "ごはん", "よろこび", "ねむい", "体調不良"]
+TRAINING_MAX_STOCK = 3
+TRAINING_RECOVERY_MINUTES = 30
+CALL_NOTICE_MINUTES = 15
+TEMP_STATE_MINUTES = 8
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -580,6 +584,7 @@ def is_sleep_time(stage: str, now: datetime) -> bool:
     return now.hour >= start or now.hour < end
 
 def update_ui_state(state: dict):
+    ensure_state_runtime_defaults(state)
     if state.get("life", 1) <= 0:
         state["ui_state"] = "体調不良"
         return
@@ -587,6 +592,15 @@ def update_ui_state(state: dict):
     if state.get("is_sleeping", False):
         state["ui_state"] = "ねむい"
         return
+
+    ui_until_raw = state.get("ui_state_until", "")
+    if ui_until_raw and state.get("ui_state") in ("ごはん", "よろこび"):
+        try:
+            if now_jst() < parse_dt(ui_until_raw):
+                return
+        except Exception:
+            pass
+        state["ui_state_until"] = ""
 
     if is_sleep_time(state["stage"], now_jst()):
         state["ui_state"] = "ねむい"
@@ -596,48 +610,58 @@ def update_ui_state(state: dict):
         state["ui_state"] = "体調不良"
         return
 
-    if state.get("ui_state") in ("ごはん", "よろこび"):
-        return
-
     state["ui_state"] = "通常"
 
 
 def state_image_name(state: dict) -> str:
-    if is_letter_state(state):
-        if "手紙" in image_map:
-            return "手紙"
-    if state.get("stage") == "egg":
-        if "たまご" in image_map:
-            return "たまご"
+    if is_letter_state(state) and "手紙" in image_map:
+        return "手紙"
+    if state.get("stage") == "egg" and "たまご" in image_map:
+        return "たまご"
 
     visual_name = (state.get("visual_name") or "").strip()
     character_name = (state.get("character_name") or "").strip()
-    current = state.get("ui_state", "通常")
+    current = (state.get("ui_state") or "通常").strip()
 
-    candidates = [
+    exact_candidates = [
         f"{visual_name}{current}" if visual_name else "",
         f"{character_name}{current}" if character_name else "",
-        visual_name if visual_name else "",
-        character_name if character_name else "",
         f"{visual_name}通常" if visual_name else "",
         f"{character_name}通常" if character_name else "",
+        visual_name if visual_name else "",
+        character_name if character_name else "",
     ]
-
-    if state.get("stage") in ("mj", "ss", "pon"):
-        candidates.append("たまご")
-
-    for name in candidates:
+    for name in exact_candidates:
         if name and name in image_map:
             return name
 
-    # 部分一致も最後に試す
-    for key in image_map.keys():
-        if visual_name and visual_name in key and current in key:
-            return key
-        if character_name and character_name in key and current in key:
-            return key
+    normalized_visual = visual_name.replace(" ", "").replace("　", "")
+    normalized_character = character_name.replace(" ", "").replace("　", "")
+    normalized_state = current.replace(" ", "").replace("　", "")
 
-    return "たまご" if "たまご" in image_map else (candidates[0] if candidates and candidates[0] else "")
+    preferred = []
+    fallback = []
+    for key in image_map.keys():
+        compact = key.replace(" ", "").replace("　", "")
+        if normalized_visual and normalized_visual in compact:
+            if normalized_state and normalized_state in compact:
+                preferred.append(key)
+            else:
+                fallback.append(key)
+        elif normalized_character and normalized_character in compact:
+            if normalized_state and normalized_state in compact:
+                preferred.append(key)
+            else:
+                fallback.append(key)
+
+    if preferred:
+        preferred.sort(key=lambda k: len(k))
+        return preferred[0]
+    if fallback:
+        fallback.sort(key=len)
+        return fallback[0]
+
+    return "たまご" if "たまご" in image_map else ""
 
 def apply_time_passage(state: dict) -> dict:
     ensure_state_runtime_defaults(state)
@@ -868,6 +892,9 @@ def ensure_state_runtime_defaults(state: dict) -> dict:
     state.setdefault("last_training_recovery", state.get("last_update", now_s))
     state.setdefault("quiz_streak", 0)
     state.setdefault("last_call_notice", "")
+    state.setdefault("last_call_message_id", "")
+    state.setdefault("last_call_reasons_key", "")
+    state.setdefault("ui_state_until", "")
     return state
 
 def recover_training_stock(state: dict) -> dict:
@@ -899,6 +926,29 @@ def consume_training_stock(state: dict) -> bool:
 def training_stock_bar(state: dict) -> str:
     ensure_state_runtime_defaults(state)
     return care_bar(int(state.get("training_stock", TRAINING_MAX_STOCK)), int(state.get("training_stock_max", TRAINING_MAX_STOCK)), "◆", "◇")
+
+def training_recovery_text(state: dict) -> str:
+    ensure_state_runtime_defaults(state)
+    recover_training_stock(state)
+    stock = int(state.get("training_stock", TRAINING_MAX_STOCK))
+    max_stock = int(state.get("training_stock_max", TRAINING_MAX_STOCK))
+    if stock >= max_stock:
+        return "満タン"
+    base_time_raw = state.get("last_training_recovery") or state.get("last_update") or dt_to_str(now_jst())
+    try:
+        base_time = parse_dt(base_time_raw)
+    except Exception:
+        base_time = now_jst()
+    next_time = base_time + timedelta(minutes=TRAINING_RECOVERY_MINUTES)
+    remaining = max(0, int((next_time - now_jst()).total_seconds() // 60))
+    return f"{remaining}分で1回復"
+
+def set_temp_ui_state(state: dict, ui_state: str, minutes: int = TEMP_STATE_MINUTES):
+    state["ui_state"] = ui_state
+    state["ui_state_until"] = dt_to_str(now_jst() + timedelta(minutes=minutes))
+
+def build_call_reasons_key(reasons: List[str]) -> str:
+    return "|".join(sorted(reasons))
 
 def get_call_reasons(state: dict) -> List[str]:
     if is_non_care_state(state):
@@ -975,7 +1025,7 @@ def build_status_embed(user_id: str, slot_no: int, state: dict) -> discord.Embed
         name="育成メモ",
         value=(
             f"🎵 トレーニング回数 {state['training_count']}回\n"
-            f"🎫 トレーニングストック {training_stock_bar(state)}\n"
+            f"🎫 トレーニングストック {training_stock_bar(state)} ({training_recovery_text(state)})\n"
             f"🛌 睡眠品質 {state['sleep_quality']}\n"
             f"🔥 連続正解 {state.get('quiz_streak', 0)}\n"
             f"📝 前回: {state.get('last_action_text', '-')}"
@@ -1144,6 +1194,33 @@ async def get_or_create_status_message(thread: discord.Thread, user_id: str, slo
     set_slot_thread_info(user_id, slot_no, thread.id, msg.id)
     return msg
 
+
+async def delete_call_notice_message(thread: discord.Thread, state: dict):
+    ensure_state_runtime_defaults(state)
+    message_id = (state.get("last_call_message_id") or "").strip()
+    if not message_id:
+        return
+    try:
+        msg = await thread.fetch_message(int(message_id))
+        await msg.delete()
+    except Exception:
+        pass
+    state["last_call_message_id"] = ""
+    state["last_call_notice"] = ""
+    state["last_call_reasons_key"] = ""
+
+async def clear_call_notice_for_slot(user_id: str, slot_no: int):
+    slot = get_slot(user_id, slot_no)
+    thread_id = slot["thread_id"] or ""
+    state = load_state(slot)
+    if not state or not thread_id:
+        return
+    thread = bot.get_channel(int(thread_id))
+    if not thread or not isinstance(thread, discord.Thread):
+        return
+    await delete_call_notice_message(thread, state)
+    save_slot(user_id, slot_no, state)
+
 async def refresh_status_message(user_id: str, slot_no: int):
     slot = get_slot(user_id, slot_no)
     thread_id = slot["thread_id"] or ""
@@ -1173,19 +1250,32 @@ async def refresh_status_message(user_id: str, slot_no: int):
     await msg.edit(content=None, embed=embed, view=CareView(user_id, slot_no))
 
     reasons = get_call_reasons(state)
-    if reasons:
+    current_key = build_call_reasons_key(reasons)
+
+    if not reasons:
+        if state.get("last_call_message_id"):
+            await delete_call_notice_message(thread, state)
+            save_slot(user_id, slot_no, state)
+    else:
+        last_key = state.get("last_call_reasons_key", "")
+        if state.get("last_call_message_id") and last_key != current_key:
+            await delete_call_notice_message(thread, state)
+
         last_notice_raw = state.get("last_call_notice", "")
-        should_ping = True
-        if last_notice_raw:
+        should_ping = not state.get("last_call_message_id")
+        if not should_ping and last_notice_raw:
             try:
                 last_notice = parse_dt(last_notice_raw)
                 should_ping = (now_jst() - last_notice).total_seconds() >= CALL_NOTICE_MINUTES * 60
             except Exception:
                 should_ping = True
+
         if should_ping:
             try:
-                await thread.send(f"<@{user_id}> 呼び出し: " + " / ".join(reasons))
+                notice_msg = await thread.send(f"<@{user_id}> 呼び出し: " + " / ".join(reasons))
                 state["last_call_notice"] = dt_to_str(now_jst())
+                state["last_call_message_id"] = str(notice_msg.id)
+                state["last_call_reasons_key"] = current_key
                 save_slot(user_id, slot_no, state)
             except Exception:
                 pass
@@ -1454,9 +1544,10 @@ class CareView(discord.ui.View):
             return
         state["condition"] = min(5, state["condition"] + 2)
         state["stress"] = max(0, state["stress"] - 1)
-        state["ui_state"] = "ごはん"
+        set_temp_ui_state(state, "ごはん")
         state["last_action_text"] = "ごはんをあげた"
         save_slot(self.user_id, self.slot_no, state)
+        await clear_call_notice_for_slot(self.user_id, self.slot_no)
         await refresh_status_message(self.user_id, self.slot_no)
         await interaction.response.defer()
 
@@ -1470,9 +1561,10 @@ class CareView(discord.ui.View):
             return
         state["stress"] = max(0, state["stress"] - 1)
         state["influence"] += 2
-        state["ui_state"] = "よろこび"
+        set_temp_ui_state(state, "よろこび")
         state["last_action_text"] = "あそんだ"
         save_slot(self.user_id, self.slot_no, state)
+        await clear_call_notice_for_slot(self.user_id, self.slot_no)
         await refresh_status_message(self.user_id, self.slot_no)
         await interaction.response.defer()
 
@@ -1485,13 +1577,14 @@ class CareView(discord.ui.View):
             await interaction.response.send_message("たまごと手紙はトレーニングできないよ。", ephemeral=True)
             return
         if not consume_training_stock(state):
-            await interaction.response.send_message("トレーニングストックがない。少し待つと回復するよ。", ephemeral=True)
+            await interaction.response.send_message("トレーニングストックがない。30分で1回復するよ。", ephemeral=True)
             return
         question = pick_music_quiz_question()
         state["last_action_text"] = f"音楽クイズに挑戦中（{question['category']}）"
         save_slot(self.user_id, self.slot_no, state)
+        await clear_call_notice_for_slot(self.user_id, self.slot_no)
         await refresh_status_message(self.user_id, self.slot_no)
-        prompt = f"【{question['category']}】\n{question['question']}\n3択で答えて。"
+        prompt = f"【{question['category']}】\n{question['question']}\n3択で答えて。\nトレーニングは {TRAINING_RECOVERY_MINUTES}分で1回復。"
         await interaction.response.send_message(prompt, view=MusicQuizView(self.user_id, self.slot_no, question), ephemeral=True)
 
     @discord.ui.button(label="休ませる", style=discord.ButtonStyle.secondary)
@@ -1506,6 +1599,7 @@ class CareView(discord.ui.View):
         state["last_action_text"] = "休ませた" if state["is_sleeping"] else "起こした"
         update_ui_state(state)
         save_slot(self.user_id, self.slot_no, state)
+        await clear_call_notice_for_slot(self.user_id, self.slot_no)
         await refresh_status_message(self.user_id, self.slot_no)
         await interaction.response.defer()
 
@@ -1770,7 +1864,7 @@ class UtilityView(discord.ui.View):
         await interaction.response.send_message(
             "プレイヤーはボタンだけで遊べるようにしてる。\n"
             "最初は『はじめる』、次からは『つづきから』。\n"
-            "画像・master・ログの確認は管理ログを見るの。",
+            "画像・master・ログの確認は管理ログを見るの。\nセーブがアップデートで消える件は、Railwayの永続Volumeを付けないとコードだけでは完全には直らない。",
             ephemeral=True,
         )
 
